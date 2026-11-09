@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>QuickDraw P2P</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #121212;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+    }
+    header {
+      padding: 10px 14px;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    #lobby {
+      padding: 12px;
+      background: #252525;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    input {
+      flex: 1;
+      padding: 8px 12px;
+      background: #111;
+      border: 1px solid #444;
+      color: #fff;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    button {
+      padding: 8px 14px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    button.clear { background: #dc2626; }
+    canvas {
+      flex: 1;
+      background: #ffffff;
+      touch-action: none;
+      display: block;
+    }
+    #status {
+      font-size: 12px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>Room: <b id="displayRoom">Connecting...</b></div>
+    <div id="status">Waiting for peers</div>
+    <button class="clear" id="clearBtn">Clear</button>
+  </header>
+
+  <div id="lobby">
+    <input type="text" id="joinInput" placeholder="Enter Friend's Room Code">
+    <button id="joinBtn">Join</button>
+  </div>
+
+  <canvas id="board"></canvas>
+
+  <script>
+    const myCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const peer = new Peer('qd-' + myCode);
+    let connections = [];
+
+    const displayRoom = document.getElementById('displayRoom');
+    const statusText = document.getElementById('status');
+
+    peer.on('open', (id) => {
+      displayRoom.textContent = myCode;
+      statusText.textContent = "Share code with friend";
+    });
+
+    peer.on('connection', (conn) => {
+      setupConnection(conn);
+    });
+
+    document.getElementById('joinBtn').addEventListener('click', () => {
+      const code = document.getElementById('joinInput').value.trim().toUpperCase();
+      if (!code) return;
+      statusText.textContent = "Connecting to " + code + "...";
+      const conn = peer.connect('qd-' + code);
+      setupConnection(conn);
+    });
+
+    function setupConnection(conn) {
+      conn.on('open', () => {
+        connections.push(conn);
+        statusText.textContent = "Connected (" + connections.length + " player)";
+        document.getElementById('lobby').style.display = 'none';
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'draw') {
+          renderStroke(data.x0, data.y0, data.x1, data.y1);
+        } else if (data.type === 'clear') {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      });
+
+      conn.on('close', () => {
+        connections = connections.filter(c => c !== conn);
+        statusText.textContent = connections.length ? `Connected (${connections.length})` : "Friend left";
+      });
+    }
+
+    function broadcast(data) {
+      connections.forEach(conn => {
+        if (conn.open) conn.send(data);
+      });
+    }
+
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = canvas.clientHeight;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#000000';
+    }
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 100);
+
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return {
+        x: (t.clientX - rect.left) / canvas.width,
+        y: (t.clientY - rect.top) / canvas.height
+      };
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      const { x, y } = getPos(e);
+      lastX = x;
+      lastY = y;
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      const { x, y } = getPos(e);
+
+      renderStroke(lastX, lastY, x, y);
+      broadcast({ type: 'draw', x0: lastX, y0: lastY, x1: x, y1: y });
+
+      lastX = x;
+      lastY = y;
+    }
+
+    function stopDraw() { drawing = false; }
+
+    function renderStroke(x0, y0, x1, y1) {
+      ctx.beginPath();
+      ctx.moveTo(x0 * canvas.width, y0 * canvas.height);
+      ctx.lineTo(x1 * canvas.width, y1 * canvas.height);
+      ctx.stroke();
+    }
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      broadcast({ type: 'clear' });
+    });
+  </script>
+</body>
+</html>
