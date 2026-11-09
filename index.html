@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>QuickDraw P2P</title>
+  <title>QuickDraw Live</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
-      background: #121212;
-      color: #fff;
+      background: #111418;
+      color: #f3f4f6;
       font-family: system-ui, -apple-system, sans-serif;
       height: 100vh;
       display: flex;
@@ -18,177 +18,629 @@
       touch-action: none;
     }
     header {
-      padding: 10px 14px;
-      background: #1e1e1e;
+      background: #1a1f26;
+      padding: 8px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
+      border-bottom: 1px solid #2d3748;
     }
-    #lobby {
-      padding: 12px;
-      background: #252525;
+    .badge {
+      font-weight: 700;
+      font-size: 13px;
+      color: #38bdf8;
+      background: #0f172a;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    #timer {
+      font-size: 16px;
+      font-weight: 800;
+      color: #facc15;
+      min-width: 32px;
+      text-align: center;
+    }
+    #wordHint {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #fff;
+    }
+    #mainLayout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    #boardContainer {
+      flex: 1;
+      position: relative;
+      background: #ffffff;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    #palette {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
       display: flex;
       gap: 8px;
+      background: rgba(17, 20, 24, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 6px 10px;
+      border-radius: 24px;
       align-items: center;
+      justify-content: space-between;
     }
-    input {
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+    .btn-sm {
+      padding: 4px 10px;
+      background: #ef4444;
+      border: none;
+      color: white;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    #bottomPanel {
+      height: 180px;
+      background: #181d24;
+      display: flex;
+      border-top: 1px solid #2d3748;
+    }
+    #scoreList {
+      width: 110px;
+      border-right: 1px solid #2d3748;
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .score-card {
+      background: #202731;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .score-card.answered {
+      border-left: 3px solid #22c55e;
+      color: #4ade80;
+    }
+    .score-card b {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #chatPanel {
       flex: 1;
-      padding: 8px 12px;
-      background: #111;
-      border: 1px solid #444;
-      color: #fff;
-      border-radius: 6px;
-      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
     }
-    button {
-      padding: 8px 14px;
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 8px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .msg-sys { color: #94a3b8; font-style: italic; }
+    .msg-win { color: #4ade80; font-weight: 700; }
+    .msg-text b { color: #38bdf8; }
+    #chatForm {
+      display: flex;
+      padding: 6px;
+      gap: 6px;
+      background: #111418;
+    }
+    #chatInput {
+      flex: 1;
+      background: #202731;
+      border: 1px solid #374151;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    #chatBtn {
+      padding: 6px 12px;
+      background: #3b82f6;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #1a1f26;
+      border: 1px solid #374151;
+      width: 100%;
+      max-width: 320px;
+      padding: 16px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card h3 { font-size: 16px; text-align: center; }
+    .card label { font-size: 12px; color: #9ca3af; display: flex; justify-content: space-between; }
+    .card select, .card input {
+      padding: 8px;
+      background: #111418;
+      border: 1px solid #374151;
+      color: white;
+      border-radius: 6px;
+    }
+    .btn-main {
+      padding: 10px;
       background: #2563eb;
-      color: #fff;
+      color: white;
       border: none;
       border-radius: 6px;
-      font-weight: bold;
+      font-weight: 700;
     }
-    button.clear { background: #dc2626; }
-    canvas {
-      flex: 1;
-      background: #ffffff;
-      touch-action: none;
-      display: block;
+    .word-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 280px;
     }
-    #status {
-      font-size: 12px;
-      color: #aaa;
+    .word-btn {
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: capitalize;
     }
   </style>
 </head>
 <body>
 
   <header>
-    <div>Room: <b id="displayRoom">Connecting...</b></div>
-    <div id="status">Waiting for peers</div>
-    <button class="clear" id="clearBtn">Clear</button>
+    <div><span class="badge" id="roomDisplay">...</span></div>
+    <div id="wordHint">_ _ _</div>
+    <div id="timer">--</div>
   </header>
 
-  <div id="lobby">
-    <input type="text" id="joinInput" placeholder="Enter Friend's Room Code">
-    <button id="joinBtn">Join</button>
+  <div id="mainLayout">
+    <div id="boardContainer">
+      <canvas id="board"></canvas>
+      <div id="palette" style="display: none;">
+        <div style="display: flex; gap: 8px;">
+          <div class="color-swatch" style="background: #000;" onclick="setColor('#000')"></div>
+          <div class="color-swatch" style="background: #ef4444;" onclick="setColor('#ef4444')"></div>
+          <div class="color-swatch" style="background: #3b82f6;" onclick="setColor('#3b82f6')"></div>
+          <div class="color-swatch" style="background: #22c55e;" onclick="setColor('#22c55e')"></div>
+        </div>
+        <button class="btn-sm" id="clearBtn">Clear</button>
+      </div>
+    </div>
+
+    <div id="bottomPanel">
+      <div id="scoreList"></div>
+      <div id="chatPanel">
+        <div id="messages"></div>
+        <form id="chatForm">
+          <input type="text" id="chatInput" placeholder="Guess the word..." autocomplete="off">
+          <button type="submit" id="chatBtn">Send</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 1. Join / Setup Modal -->
+    <div class="overlay" id="setupModal">
+      <div class="card">
+        <h3>Join or Host</h3>
+        <input type="text" id="nameInput" placeholder="Enter Nickname" maxlength="10">
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="joinCodeInput" placeholder="Room Code" style="text-transform: uppercase; width: 60%;">
+          <button class="btn-main" id="joinBtn" style="flex: 1;">Join</button>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #374151;">
+        <label>Timer Duration: <span id="timeVal">60s</span></label>
+        <input type="range" id="timerSetting" min="40" max="120" step="10" value="60">
+        <label>Difficulty:</label>
+        <select id="diffSetting">
+          <option value="easy">Easy (3-4 letters)</option>
+          <option value="normal" selected>Normal (5-6 letters)</option>
+          <option value="difficult">Difficult (7+ letters)</option>
+        </select>
+        <label>Hints to reveal:</label>
+        <select id="hintCountSetting">
+          <option value="1">1 Letter</option>
+          <option value="2" selected>2 Letters</option>
+          <option value="3">3 Letters</option>
+        </select>
+        <button class="btn-main" id="hostBtn">Create Private Match</button>
+      </div>
+    </div>
+
+    <!-- 2. Word Pick Modal -->
+    <div class="overlay" id="wordPickModal" style="display: none;">
+      <h3 style="margin-bottom: 12px;">Choose a Word to Draw</h3>
+      <div class="word-choices" id="wordChoicesContainer"></div>
+    </div>
   </div>
 
-  <canvas id="board"></canvas>
-
   <script>
-    const myCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const peer = new Peer('qd-' + myCode);
-    let connections = [];
+    const WORDS = {
+      easy: ['cat', 'sun', 'cup', 'car', 'hat', 'dog', 'tree', 'ball', 'fish', 'star', 'book'],
+      normal: ['apple', 'rocket', 'guitar', 'bridge', 'castle', 'banana', 'pencil', 'planet', 'camera', 'spider'],
+      difficult: ['pyramid', 'helicopter', 'dinosaur', 'telescope', 'astronaut', 'submarine', 'lighthouse', 'waterfall', 'umbrella']
+    };
 
-    const displayRoom = document.getElementById('displayRoom');
-    const statusText = document.getElementById('status');
+    let peer = null;
+    let connections = {};
+    let isHost = false;
+    let myName = "";
+    let myId = "";
+    let hostConn = null;
 
-    peer.on('open', (id) => {
-      displayRoom.textContent = myCode;
-      statusText.textContent = "Share code with friend";
-    });
-
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
-    document.getElementById('joinBtn').addEventListener('click', () => {
-      const code = document.getElementById('joinInput').value.trim().toUpperCase();
-      if (!code) return;
-      statusText.textContent = "Connecting to " + code + "...";
-      const conn = peer.connect('qd-' + code);
-      setupConnection(conn);
-    });
-
-    function setupConnection(conn) {
-      conn.on('open', () => {
-        connections.push(conn);
-        statusText.textContent = "Connected (" + connections.length + " player)";
-        document.getElementById('lobby').style.display = 'none';
-      });
-
-      conn.on('data', (data) => {
-        if (data.type === 'draw') {
-          renderStroke(data.x0, data.y0, data.x1, data.y1);
-        } else if (data.type === 'clear') {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-      });
-
-      conn.on('close', () => {
-        connections = connections.filter(c => c !== conn);
-        statusText.textContent = connections.length ? `Connected (${connections.length})` : "Friend left";
-      });
-    }
-
-    function broadcast(data) {
-      connections.forEach(conn => {
-        if (conn.open) conn.send(data);
-      });
-    }
+    let gameState = {
+      players: {}, // id: { name, score, answered: false }
+      currentDrawer: null,
+      secretWord: "",
+      displayWord: "",
+      timer: 0,
+      settings: { timer: 60, diff: 'normal', hints: 2 },
+      roundActive: false
+    };
 
     const canvas = document.getElementById('board');
     const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+    let brushColor = '#000000';
+    let timerInterval = null;
 
     function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = canvas.clientHeight;
+      const container = document.getElementById('boardContainer');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
       ctx.lineWidth = 4;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = brushColor;
     }
     window.addEventListener('resize', resize);
     setTimeout(resize, 100);
 
-    let drawing = false;
-    let lastX = 0, lastY = 0;
-
-    function getPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
-      return {
-        x: (t.clientX - rect.left) / canvas.width,
-        y: (t.clientY - rect.top) / canvas.height
-      };
+    function setColor(c) {
+      brushColor = c;
+      ctx.strokeStyle = c;
     }
 
-    function startDraw(e) {
-      drawing = true;
-      const { x, y } = getPos(e);
-      lastX = x;
-      lastY = y;
+    // Modal UI logic
+    document.getElementById('timerSetting').oninput = (e) => {
+      document.getElementById('timeVal').textContent = e.target.value + 's';
+    };
+
+    // 1. Host Game
+    document.getElementById('hostBtn').onclick = () => {
+      myName = document.getElementById('nameInput').value.trim() || 'Host';
+      isHost = true;
+      gameState.settings.timer = parseInt(document.getElementById('timerSetting').value);
+      gameState.settings.diff = document.getElementById('diffSetting').value;
+      gameState.settings.hints = parseInt(document.getElementById('hintCountSetting').value);
+
+      const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+      initPeer('qd-' + code, () => {
+        document.getElementById('roomDisplay').textContent = code;
+        gameState.players[myId] = { name: myName, score: 0, answered: false };
+        updateScoreboard();
+        document.getElementById('setupModal').style.display = 'none';
+        postSys("Room created. Waiting for friends to join...");
+      });
+    };
+
+    // 2. Join Game
+    document.getElementById('joinBtn').onclick = () => {
+      myName = document.getElementById('nameInput').value.trim() || 'Player';
+      const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+      if (!code) return;
+
+      initPeer(null, () => {
+        document.getElementById('roomDisplay').textContent = code;
+        hostConn = peer.connect('qd-' + code);
+        setupClientConn(hostConn);
+      });
+    };
+
+    function initPeer(id, callback) {
+      peer = id ? new Peer(id) : new Peer();
+      peer.on('open', (assignedId) => {
+        myId = assignedId;
+        callback();
+      });
+
+      peer.on('connection', (conn) => {
+        if (!isHost) return;
+        conn.on('open', () => {
+          connections[conn.peer] = conn;
+          conn.on('data', (d) => handleHostIncomingData(conn.peer, d));
+        });
+        conn.on('close', () => {
+          delete connections[conn.peer];
+          delete gameState.players[conn.peer];
+          syncGameState();
+        });
+      });
     }
 
-    function draw(e) {
-      if (!drawing) return;
-      const { x, y } = getPos(e);
-
-      renderStroke(lastX, lastY, x, y);
-      broadcast({ type: 'draw', x0: lastX, y0: lastY, x1: x, y1: y });
-
-      lastX = x;
-      lastY = y;
+    function setupClientConn(conn) {
+      conn.on('open', () => {
+        document.getElementById('setupModal').style.display = 'none';
+        conn.send({ type: 'join', name: myName });
+      });
+      conn.on('data', (d) => handleClientIncomingData(d));
     }
 
-    function stopDraw() { drawing = false; }
+    // Host Turn Controller
+    function startNextTurn() {
+      if (!isHost) return;
+      const ids = Object.keys(gameState.players);
+      if (ids.length < 2) {
+        postSys("Need at least 2 players to start a round.");
+        return;
+      }
 
-    function renderStroke(x0, y0, x1, y1) {
-      ctx.beginPath();
-      ctx.moveTo(x0 * canvas.width, y0 * canvas.height);
-      ctx.lineTo(x1 * canvas.width, y1 * canvas.height);
-      ctx.stroke();
+      // Pick next drawer
+      let nextIndex = 0;
+      if (gameState.currentDrawer) {
+        nextIndex = (ids.indexOf(gameState.currentDrawer) + 1) % ids.length;
+      }
+      gameState.currentDrawer = ids[nextIndex];
+      gameState.roundActive = false;
+
+      // Reset round answered flags
+      ids.forEach(id => gameState.players[id].answered = false);
+
+      // Offer 4 word choices
+      const pool = WORDS[gameState.settings.diff];
+      const choices = [...pool].sort(() => 0.5 - Math.random()).slice(0, 4);
+
+      if (gameState.currentDrawer === myId) {
+        showWordPickModal(choices);
+      } else {
+        connections[gameState.currentDrawer].send({ type: 'choose_word', choices });
+      }
+      syncGameState();
     }
 
-    canvas.addEventListener('touchstart', startDraw, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    canvas.addEventListener('touchend', stopDraw);
+    function launchRound(word) {
+      gameState.secretWord = word.toLowerCase();
+      gameState.roundActive = true;
+      gameState.timer = gameState.settings.timer;
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
+      // Build masked hints with fixed reveal count
+      const len = word.length;
+      let hintIndices = [];
+      const revealCount = Math.min(gameState.settings.hints, len - 1);
+      while (hintIndices.length < revealCount) {
+        let r = Math.floor(Math.random() * len);
+        if (!hintIndices.includes(r)) hintIndices.push(r);
+      }
+
+      let masked = "";
+      for (let i = 0; i < len; i++) {
+        masked += hintIndices.includes(i) ? word[i].toUpperCase() + " " : "_ ";
+      }
+      gameState.displayWord = masked.trim();
+
+      // Clear Canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       broadcast({ type: 'clear' });
-    });
-  </script>
-</body>
-</html>
+
+      syncGameState();
+
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        gameState.timer--;
+        if (gameState.timer <= 0) {
+          clearInterval(timerInterval);
+          postSys("Time up! The word was: " + gameState.secretWord.toUpperCase());
+          setTimeout(startNextTurn, 3000);
+        }
+        syncGameState();
+      }, 1000);
+    }
+
+    // Host Data Handler
+    function handleHostIncomingData(senderId, data) {
+      if (data.type === 'join') {
+        gameState.players[senderId] = { name: data.name, score: 0, answered: false };
+        syncGameState();
+        if (!gameState.roundActive && Object.keys(gameState.players).length >= 2) {
+          startNextTurn();
+        }
+      } else if (data.type === 'word_selected') {
+        launchRound(data.word);
+      } else if (data.type === 'draw' || data.type === 'clear') {
+        broadcast(data, senderId);
+      } else if (data.type === 'guess') {
+        handleGuess(senderId, data.text);
+      }
+    }
+
+    function handleGuess(senderId, text) {
+      const clean = text.trim().toLowerCase();
+      const player = gameState.players[senderId];
+
+      if (gameState.roundActive && !player.answered && senderId !== gameState.currentDrawer) {
+        if (clean === gameState.secretWord) {
+          player.answered = true;
+          // Points calculated by remaining speed
+          const earned = Math.max(10, Math.round((gameState.timer / gameState.settings.timer) * 100));
+          player.score += earned;
+
+          // Award drawer points too
+          if (gameState.players[gameState.currentDrawer]) {
+            gameState.players[gameState.currentDrawer].score += 15;
+          }
+
+          broadcast({ type: 'correct_guess', name: player.name });
+          syncGameState();
+
+          // Check if all active guessers found it
+          const guessers = Object.keys(gameState.players).filter(id => id !== gameState.currentDrawer);
+          if (guessers.every(id => gameState.players[id].answered)) {
+            clearInterval(timerInterval);
+            postSys("All players guessed correctly!");
+            setTimeout(startNextTurn, 2500);
+          }
+          return;
+        }
+      }
+      broadcast({ type: 'chat', name: player.name, text: text });
+    }
+
+    function syncGameState() {
+      updateLocalUI();
+      // Host hides the plain word from clients; sends display hint only
+      const stateForClients = JSON.parse(JSON.stringify(gameState));
+      stateForClients.secretWord = ""; 
+      broadcast({ type: 'state_sync', state: stateForClients });
+    }
+
+    function broadcast(data, excludePeer = null) {
+      Object.keys(connections).forEach(peerId => {
+        if (peerId !== excludePeer && connections[peerId].open) {
+          connections[peerId].send(data);
+        }
+      });
+      if (excludePeer !== myId) {
+        handleClientIncomingData(data);
+      }
+    }
+
+    // Client Data Receiver
+    function handleClientIncomingData(data) {
+      if (data.type === 'state_sync') {
+        gameState = data.state;
+        updateLocalUI();
+      } else if (data.type === 'choose_word') {
+        showWordPickModal(data.choices);
+      } else if (data.type === 'draw') {
+        renderStroke(data.x0, data.y0, data.x1, data.y1, data.color);
+      } else if (data.type === 'clear') {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else if (data.type === 'chat') {
+        appendMessage(data.name, data.text);
+      } else if (data.type === 'correct_guess') {
+        appendSystemWin(`${data.name} guessed the word!`);
+      }
+    }
+
+    function showWordPickModal(choices) {
+      const container = document.getElementById('wordChoicesContainer');
+      container.innerHTML = "";
+      choices.forEach(w => {
+        const btn = document.createElement('button');
+        btn.className = 'word-btn';
+        btn.textContent = w;
+        btn.onclick = () => {
+          document.getElementById('wordPickModal').style.display = 'none';
+          if (isHost) launchRound(w);
+          else hostConn.send({ type: 'word_selected', word: w });
+        };
+        container.appendChild(btn);
+      });
+      document.getElementById('wordPickModal').style.display = 'flex';
+    }
+
+    function updateLocalUI() {
+      document.getElementById('timer').textContent = gameState.timer > 0 ? gameState.timer : '--';
+      
+      const isDrawer = gameState.currentDrawer === myId;
+      document.getElementById('palette').style.display = isDrawer ? 'flex' : 'none';
+
+      if (isDrawer && gameState.secretWord) {
+        document.getElementById('wordHint').textContent = gameState.secretWord.toUpperCase();
+      } else {
+        document.getElementById('wordHint').textContent = gameState.displayWord || '_ _ _';
+      }
+      updateScoreboard();
+    }
+
+    function updateScoreboard() {
+      const list = document.getElementById('scoreList');
+      list.innerHTML = "";
+      const sorted = Object.values(gameState.players).sort((a,b) => b.score - a.score);
+      sorted.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'score-card' + (p.answered ? ' answered' : '');
+        div.innerHTML = `<b>${p.name}</b><span>${p.score} pts</span>`;
+        list.appendChild(div);
+      });
+    }
+
+    // Chat Form Submissions
+    document.getElementById('chatForm').onsubmit = (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      if (isHost) handleGuess(myId, text);
+      else hostConn.send({ type: 'guess', text });
+    };
+
+    function postSys(txt) {
+      broadcast({ type: 'chat_sys', text: txt });
+      appendSys(txt);
+    }
+    function appendSys(txt) {
+      const el = document.createElement('div');
+      el.className = 'msg-sys';
+      el.textContent = txt;
+      pushMsg(el);
+    }
+    function appendSystemWin(txt) {
+      const el = document.createElement('div');
+      el.className = 'msg-win';
+      el.textContent = txt;
+      pushMsg(el);
+    }
+    function appendMessage(name, text) {
+      const el = document.createElement('div');
+      el.className = 'msg-text';
+      el.innerHTML = `<b>${name}:</b> ${text}`;
+      pushMsg(el);
+    }
+    function pushMsg(node) {
+      const box = document.getElementById('messages');
+      box.appendChild(node);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Touch Drawing Handlers
+    function getTouchPos(e) {
+      const rect = canvas.ge
